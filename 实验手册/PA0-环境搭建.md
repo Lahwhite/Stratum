@@ -37,6 +37,8 @@ git --version
 
 ### 2.2 RISC-V 交叉编译器
 
+PA2 才用到的，可以暂时不配置
+
 用于将测试程序和用户程序编译为 RISC-V 32 位二进制。
 
 ```bash
@@ -54,7 +56,9 @@ riscv32-unknown-elf-gcc --version
 
 > macOS：使用 Homebrew 安装 `riscv-software-src/riscv/riscv-gnu-toolchain`
 
-### 2.3 SDL2（PA3 显示器模拟，现在装好省后患）
+### 2.3 SDL2
+
+PA3 才用到的，现在可以暂时不配置
 
 ```bash
 sudo apt install -y libsdl2-dev libsdl2-image-dev
