@@ -5,16 +5,17 @@
 > **预计时间：** 2～3 天  
 > **前置条件：** PA0 全部完成；成员 A 已提交 `cpu.h`（包含 `CPU_state` 和 `GPR_NAMES`）  
 > **本阶段涉及文件：**
+>
 > ```
 > score/
 > ├── include/
 > │   ├── expr.h          ← 本阶段新建
 > │   └── watchpoint.h    ← 本阶段新建
 > └── src/
->     └── monitor/
->         ├── expr.cpp        ← 本阶段新建
->         ├── watchpoint.cpp  ← 本阶段新建
->         └── test_expr.cpp   ← 本阶段新建（独立测试驱动，联调后删除）
+>  └── monitor/
+>      ├── expr.cpp        ← 本阶段新建
+>      ├── watchpoint.cpp  ← 本阶段新建
+>      └── test_expr.cpp   ← 本阶段新建（独立测试驱动，联调后删除）
 > ```
 > **本阶段不涉及：** `sdb.cpp` 的命令循环由成员 A 负责，联调1时你将 `expr.h`/`watchpoint.h` 的接口接入 A 的命令表。  
 > **依赖 A 的接口：** `cpu.h`（`CPU_state`、`GPR_NAMES`）、`memory.h`（`paddr_read`）。如果 A 还未提交，先自己写一个最小桩版本用于编译，联调时替换。
@@ -146,9 +147,9 @@ uint32_t expr_eval(const char *e, bool *success);
 ```
 
 ### 检查点
-- [ ] `tokenize("1+0xff")` 产生 3 个 Token：TK_NUM, TK_PLUS, TK_HEX
-- [ ] `tokenize("  1  ")` 空白被忽略，产生 1 个 Token
-- [ ] `tokenize("@")` 返回 false，打印错误信息
+- [x] `tokenize("1+0xff")` 产生 3 个 Token：TK_NUM, TK_PLUS, TK_HEX
+- [x] `tokenize("  1  ")` 空白被忽略，产生 1 个 Token
+- [x] `tokenize("@")` 返回 false，打印错误信息
 
 ---
 
@@ -222,7 +223,7 @@ static void mark_deref() {
 
 | Token 类型 | 处理方式 |
 |------------|---------|
-| `TK_NUM` | `strtoul(t.str, nullptr, 10)` |
+| `TK_NUM` | `strtoul(t .str, nullptr, 10)` |
 | `TK_HEX` | `strtoul(t.str + 2, nullptr, 16)`（跳过 `0x` 前缀） |
 | `TK_REG` | 若 `t.str+1` 等于 `"pc"` 返回 `cpu.pc`；否则遍历 `GPR_NAMES` 找到对应 `cpu.gpr[i]` |
 | `TK_LPAREN` | 递归调用 `parse_expr`，然后期望一个 `TK_RPAREN` |
@@ -249,12 +250,12 @@ uint32_t expr_eval(const char *e, bool *success) {
 ```
 
 ### 检查点
-- [ ] `expr_eval("1+2*3", &ok)` 返回 7，ok = true
-- [ ] `expr_eval("2*(3+4)", &ok)` 返回 14，ok = true
-- [ ] `expr_eval("0xff", &ok)` 返回 255，ok = true
-- [ ] `expr_eval("1==1", &ok)` 返回 1，ok = true
-- [ ] `expr_eval("1/0", &ok)` 打印除零错误，ok = false，不崩溃
-- [ ] `expr_eval("$xyz", &ok)` 打印未知寄存器，ok = false，不崩溃
+- [x] `expr_eval("1+2*3", &ok)` 返回 7，ok = true
+- [x] `expr_eval("2*(3+4)", &ok)` 返回 14，ok = true
+- [x] `expr_eval("0xff", &ok)` 返回 255，ok = true
+- [x] `expr_eval("1==1", &ok)` 返回 1，ok = true
+- [x] `expr_eval("1/0", &ok)` 打印除零错误，ok = false，不崩溃
+- [x] `expr_eval("$xyz", &ok)` 打印未知寄存器，ok = false，不崩溃
 
 ---
 

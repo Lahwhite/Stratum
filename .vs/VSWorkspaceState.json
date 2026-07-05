@@ -1,0 +1,11 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\score",
+    "\\score\\include",
+    "\\score\\src",
+    "\\score\\src\\monitor"
+  ],
+  "SelectedNode": "\\score\\src\\monitor\\expr.cpp",
+  "PreviewInSolutionExplorer": false
+}
