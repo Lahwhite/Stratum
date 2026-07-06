@@ -7,10 +7,8 @@
 #include "../../include/sdb.h"
 #include "../../include/cpu.h"
 #include "../../include/memory.h"
-
-// ─── 前向声明（表达式求值由成员 B 实现，PA1联调后接入）─────────────────
-// uint32_t expr_eval(const char *e, bool *success);
-// ─────────────────────────────────────────────────────────────────────────
+#include "../../include/expr.h"
+#include "../../include/watchpoint.h"
 
 // 执行单步
 static int cmd_si(char *args) {
@@ -24,16 +22,24 @@ static int cmd_si(char *args) {
 
 // 打印寄存器
 static int cmd_info(char *args) {
-    if (args == nullptr || strncmp(args, "r", 1) != 0) {
-        printf("Usage: info r\n");
+    if (args == nullptr) {
+        printf("Usage: info r | info w\n");
         return 0;
     }
-    printf("%-8s 0x%08x\n", "pc", cpu.pc);
-    for (int i = 0; i < 32; i++) {
-        printf("%-8s 0x%08x", GPR_NAMES[i], cpu.gpr[i]);
-        if (i % 4 == 3) printf("\n");
-        else            printf("  ");
+    if (strncmp(args, "r", 1) == 0) {
+        printf("%-8s 0x%08x\n", "pc", cpu.pc);
+        for (int i = 0; i < 32; i++) {
+            printf("%-8s 0x%08x", GPR_NAMES[i], cpu.gpr[i]);
+            if (i % 4 == 3) printf("\n");
+            else            printf("  ");
+        }
+        return 0;
     }
+    if (strncmp(args, "w", 1) == 0) {
+        wp_print_all();
+        return 0;
+    }
+    printf("Usage: info r | info w\n");
     return 0;
 }
 
@@ -58,6 +64,37 @@ static int cmd_x(char *args) {
     return 0;
 }
 
+static int cmd_p(char *args) {
+    if (args == nullptr) {
+        printf("Usage: p EXPR\n");
+        return 0;
+    }
+    bool ok;
+    uint32_t val = expr_eval(args, &ok);
+    if (ok) printf("= 0x%08x  (%u)\n", val, val);
+    return 0;
+}
+
+static int cmd_w(char *args) {
+    if (args == nullptr) {
+        printf("Usage: w EXPR\n");
+        return 0;
+    }
+    wp_add(args);
+    return 0;
+}
+
+static int cmd_d(char *args) {
+    if (args == nullptr) {
+        printf("Usage: d N\n");
+        return 0;
+    }
+    int id = atoi(args);
+    if (wp_delete(id)) printf("Watchpoint %d 已删除\n", id);
+    else printf("找不到编号为 %d 的 watchpoint\n", id);
+    return 0;
+}
+
 // 打印帮助
 static int cmd_help(char *args);
 
@@ -69,12 +106,14 @@ struct Command {
 };
 
 static Command cmd_table[] = {
-    {"help", "打印本帮助信息",                           cmd_help},
-    {"q",    "退出 SDB",                                 nullptr },
-    {"si",   "si [N]  单步执行 N 条指令（默认 1）",      cmd_si  },
-    {"info", "info r  打印寄存器状态",                    cmd_info},
-    {"x",    "x N ADDR  查看从 ADDR 起 N 个字的内存",    cmd_x   },
-    // p / w / d 由成员 B 实现，联调后在此追加
+    {"help",    "打印本帮助信息",                             cmd_help},
+    {"q",       "退出 SDB",                                  nullptr },
+    {"si",      "si [N]  单步执行 N 条指令(默认 1)",           cmd_si  },
+    {"info",    "info r  打印寄存器状态",                     cmd_info},
+    {"x",       "x N ADDR  查看从 ADDR 起 N 个字的内存",       cmd_x   },
+    {"p",       "p EXPR  对表达式求值并打印",                  cmd_p   },
+    {"w",       "w EXPR  添加 watchpoint",                   cmd_w   },
+    {"d",       "d N  删除编号为 N 的 watchpoint",            cmd_d   },
 };
 static const int NR_CMD = sizeof(cmd_table) / sizeof(cmd_table[0]);
 
