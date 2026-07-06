@@ -5,7 +5,6 @@
 > **预计时间：** 2～3 天  
 > **前置条件：** PA0 全部完成；成员 A 已提交 `cpu.h`（包含 `CPU_state` 和 `GPR_NAMES`）  
 > **本阶段涉及文件：**
->
 > ```
 > score/
 > ├── include/
@@ -147,9 +146,9 @@ uint32_t expr_eval(const char *e, bool *success);
 ```
 
 ### 检查点
-- [x] `tokenize("1+0xff")` 产生 3 个 Token：TK_NUM, TK_PLUS, TK_HEX
-- [x] `tokenize("  1  ")` 空白被忽略，产生 1 个 Token
-- [x] `tokenize("@")` 返回 false，打印错误信息
+- [] `tokenize("1+0xff")` 产生 3 个 Token：TK_NUM, TK_PLUS, TK_HEX
+- [] `tokenize("  1  ")` 空白被忽略，产生 1 个 Token
+- [] `tokenize("@")` 返回 false，打印错误信息
 
 ---
 
@@ -250,12 +249,12 @@ uint32_t expr_eval(const char *e, bool *success) {
 ```
 
 ### 检查点
-- [x] `expr_eval("1+2*3", &ok)` 返回 7，ok = true
-- [x] `expr_eval("2*(3+4)", &ok)` 返回 14，ok = true
-- [x] `expr_eval("0xff", &ok)` 返回 255，ok = true
-- [x] `expr_eval("1==1", &ok)` 返回 1，ok = true
-- [x] `expr_eval("1/0", &ok)` 打印除零错误，ok = false，不崩溃
-- [x] `expr_eval("$xyz", &ok)` 打印未知寄存器，ok = false，不崩溃
+- [] `expr_eval("1+2*3", &ok)` 返回 7，ok = true
+- [] `expr_eval("2*(3+4)", &ok)` 返回 14，ok = true
+- [] `expr_eval("0xff", &ok)` 返回 255，ok = true
+- [] `expr_eval("1==1", &ok)` 返回 1，ok = true
+- [] `expr_eval("1/0", &ok)` 打印除零错误，ok = false，不崩溃
+- [] `expr_eval("$xyz", &ok)` 打印未知寄存器，ok = false，不崩溃
 
 ---
 

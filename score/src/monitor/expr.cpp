@@ -46,6 +46,21 @@ static Rule rules[] = {
     {"\\)",              TK_RPAREN},
 };
 
+const int NR_RULES = sizeof(rules) / sizeof(rules[0]);   // 正则匹配规则条数
+static regex_t re[NR_RULES];  // 编译后的正则表达式，与 rules[] 一一对应
+
+// 编译所有词法规则对应的正则表达式（只需执行一次，用 static bool 控制）
+static void init_regex() {
+    static bool re_compiled = false;
+    if (re_compiled) return;
+
+    for (int i = 0; i < NR_RULES; i++) {
+        regcomp(&re[i], rules[i].pattern, REG_EXTENDED);
+    }
+    re_compiled = true;
+}
+
+
 struct Token{
     TokenType type;
     char str[64];
@@ -53,62 +68,41 @@ struct Token{
 
 static Token tokens[256];  // 词法分析结果存放处
 static int   nr_token;     // 当前 token 数量
-const int NR_RULES = sizeof(rules) / sizeof(rules[0]);   // 正则匹配规则条数
-
-uint32_t expr_eval(const char *e, bool *success);
-uint32_t parse_expr(int *pos, bool *ok);
-uint32_t parse_eq(int *pos, bool *ok);
-uint32_t parse_add(int *pos, bool *ok);
-uint32_t parse_mul(int *pos, bool *ok);
-uint32_t parse_unary(int *pos, bool *ok);
-uint32_t parse_primary(int *pos, bool *ok);
 
 static bool tokenize(const char *e) {
-    // 初始化正则（只编译一次，用 static bool 控制）
-    // ...
-
+    init_regex();
     nr_token = 0;
     int pos = 0;
     int len = strlen(e);
 
-    static regex_t re[NR_RULES];
-    static bool re_compiled = false;
-    if(!re_compiled)
-    { 
-        for(int i = 0; i < NR_RULES; i++)
-        {
-            regcomp(&re[i],rules[i].pattern, REG_EXTENDED);
-        }
-        re_compiled = true;
-    }
-
     while (pos < len) {
         // 逐条尝试规则
-        for (int i = 0; i < NR_RULES; i++) 
-        {
+        bool matched = false;
+        for (int i = 0; i < NR_RULES; i++) {
             regmatch_t pmatch;
-            if (regexec(&re[i], e + pos, 1, &pmatch, 0) == 0 && pmatch.rm_so == 0) 
-            {
+            if (regexec(&re[i], e + pos, 1, &pmatch, 0) == 0 && pmatch.rm_so == 0) {
                 // 在 pos 位置匹配成功，匹配长度为 pmatch.rm_eo
                 int mlen = pmatch.rm_eo;
-                if (rules[i].type == TK_NOTYPE) 
-                {
+                if (rules[i].type == TK_NOTYPE) {
                     pos += mlen;  // 空白直接跳过
-                    goto next;
+                    matched = true;
+                    break;
                 }
                 // 记录 Token：复制原始字符串，设置类型
                 tokens[nr_token].type = rules[i].type;
-                strncpy(tokens[nr_token].str,e+pos, mlen);
+                strncpy(tokens[nr_token].str,e + pos, mlen);
                 tokens[nr_token].str[mlen] = '\0';
                 nr_token++;
                 pos += mlen;
-                goto next;
+                matched = true;
+                break;
             }
         }
-        // 没有规则匹配：词法错误
-        fprintf(stderr, "词法错误：无法识别字符 '%c' 位于位置 %d\n", e[pos], pos);
-        return false;
-    next:;
+        if (!matched) {
+            // 没有规则匹配：词法错误
+            fprintf(stderr, "词法错误：无法识别字符 '%c' 位于位置 %d\n", e[pos], pos);
+            return false;
+        }
     }
     return true;
 }
@@ -127,6 +121,15 @@ static void mark_deref() {
     }
 }
 
+uint32_t expr_eval(const char *e, bool *success);
+
+uint32_t parse_expr(int *pos, bool *ok);
+uint32_t parse_eq(int *pos, bool *ok);
+uint32_t parse_add(int *pos, bool *ok);
+uint32_t parse_mul(int *pos, bool *ok);
+uint32_t parse_unary(int *pos, bool *ok);
+uint32_t parse_primary(int *pos, bool *ok);
+
 uint32_t expr_eval(const char *e, bool *success) {
     *success = false;
     if (!tokenize(e)) return 0;
@@ -144,13 +147,10 @@ uint32_t expr_eval(const char *e, bool *success) {
     return val;
 }
 
-uint32_t parse_expr(int *pos, bool *ok)   // &&
-{
-    if(!*ok) return 0;
+uint32_t parse_expr(int *pos, bool *ok) {   // &&
     uint32_t val = parse_eq(pos, ok);
     if(!*ok) return 0;
-    while(*pos < nr_token && tokens[*pos].type == TK_AND)
-    {
+    while(*pos < nr_token && tokens[*pos].type == TK_AND) {
         *pos += 1;
         uint32_t rhs = parse_eq(pos, ok);
         if(!*ok) return 0;
@@ -159,13 +159,10 @@ uint32_t parse_expr(int *pos, bool *ok)   // &&
     return val;
 }
 
-uint32_t parse_eq(int *pos, bool *ok)     // == !=
-{
-    if(!*ok) return 0;
+uint32_t parse_eq(int *pos, bool *ok) {     // == !=
     uint32_t val = parse_add(pos, ok);
     if(!*ok) return 0;
-    while(*pos < nr_token && (tokens[*pos].type == TK_EQ || tokens[*pos].type == TK_NEQ))
-    {
+    while(*pos < nr_token && (tokens[*pos].type == TK_EQ || tokens[*pos].type == TK_NEQ)) {
         int op = tokens[*pos].type;
         (*pos) ++;
         uint32_t rhs = parse_add(pos, ok);
@@ -176,13 +173,10 @@ uint32_t parse_eq(int *pos, bool *ok)     // == !=
     return val;
 }
 
-uint32_t parse_add(int *pos, bool *ok)
-{
-    if(!*ok) return 0;
+uint32_t parse_add(int *pos, bool *ok) {
     uint32_t val = parse_mul(pos, ok);
     if(!*ok) return 0;
-    while(*pos < nr_token && (tokens[*pos].type == TK_PLUS || tokens[*pos].type == TK_MINUS))
-    {
+    while(*pos < nr_token && (tokens[*pos].type == TK_PLUS || tokens[*pos].type == TK_MINUS)) {
         int op = tokens[*pos].type;
         (*pos) ++;
         uint32_t rhs = parse_mul(pos, ok);
@@ -193,22 +187,17 @@ uint32_t parse_add(int *pos, bool *ok)
     return val;
 }
 
-uint32_t parse_mul(int *pos, bool *ok)  // * /
-{
-    if(!*ok) return 0;
+uint32_t parse_mul(int *pos, bool *ok) {  // * /
     uint32_t val = parse_unary(pos, ok);
     if(!*ok) return 0;
-    while(*pos < nr_token && (tokens[*pos].type == TK_MUL || tokens[*pos].type == TK_DIV))
-    {
+    while(*pos < nr_token && (tokens[*pos].type == TK_MUL || tokens[*pos].type == TK_DIV)) {
         int op = tokens[*pos].type;
         (*pos) ++;
         uint32_t rhs = parse_unary(pos, ok);
         if(!*ok) return 0;
         if(op == TK_MUL) val = val * rhs;
-        else
-        {
-            if(rhs == 0)
-            {
+        else {
+            if(rhs == 0) {
                 printf("calculation error: divide zero\n");
                 *ok = false;
                 return 0;
@@ -219,54 +208,41 @@ uint32_t parse_mul(int *pos, bool *ok)  // * /
     return val;
 }
 
-uint32_t parse_unary(int *pos, bool *ok)
-{
-    if(!*ok) return 0;
+uint32_t parse_unary(int *pos, bool *ok) {
     int op = tokens[*pos].type;
     uint32_t val = 0;
-    if(op == TK_MINUS || op 
-        == TK_DEREF)
-    {
+    if(op == TK_MINUS || op == TK_DEREF) {
         (*pos) ++;
         val = parse_unary(pos, ok);
         if(!*ok) return 0;
-        if(op == TK_MINUS) val = -val;   //uint will get complement type
-        else val = paddr_read(val,0);    //len is 0 for now
+        if(op == TK_MINUS) val = -val;   // uint will get complement type
+        else val = paddr_read(val, 4);   // 解引用按字（4字节）读取
     }
-    else
-    {
+    else {
         val = parse_primary(pos, ok);
         if(!*ok) return 0;
     }
     return val;
 }
 
-uint32_t parse_primary(int *pos, bool *ok)
-{
-    if(!*ok) return 0;
+uint32_t parse_primary(int *pos, bool *ok) {
     int tk_type = tokens[*pos].type;
     uint32_t val = 0;
-    switch(tk_type)
-    {
+    switch(tk_type) {
         case TK_NUM:
             val = strtoul(tokens[*pos].str, NULL, 10);
             (*pos) ++;
             break;
         case TK_HEX:
-            val = strtoul(tokens[*pos].str+2, NULL, 16);
+            val = strtoul(tokens[*pos].str + 2, NULL, 16);
             (*pos) ++;
             break;
         case TK_REG:
-            if(strcmp(tokens[*pos].str+1, "pc") == 0)
-            {
-                val = cpu.pc;
-            }
-            else
-            {
+            if(strcmp(tokens[*pos].str+1, "pc") == 0) val = cpu.pc;
+            else {
                 int i = 0;
-                while(strcmp(tokens[*pos].str+1, GPR_NAMES[i]) && i < 32) i++;
-                if(i==32)
-                {
+                while(strcmp(tokens[*pos].str + 1, GPR_NAMES[i]) && i < 32) i++;
+                if(i == 32) {
                     printf("syntax error: invalid register name\n");
                     *ok = false;
                     return 0;
@@ -279,8 +255,7 @@ uint32_t parse_primary(int *pos, bool *ok)
             (*pos) ++;
             val = parse_expr(pos,ok);
             if(!*ok) return 0;
-            if(tokens[*pos].type != TK_RPAREN)
-            {
+            if(*pos >= nr_token || tokens[*pos].type != TK_RPAREN) {
                 printf("syntax error: no right parenthesis\n");
                 *ok = false;
                 return 0;
