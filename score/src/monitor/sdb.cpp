@@ -15,8 +15,7 @@ static int cmd_si(char *args) {
     int n = 1;
     if (args != nullptr) n = atoi(args);
     if (n <= 0) n = 1;
-    printf("[SCore] si: step %d instruction(s) (CPU not yet implemented)\n", n);
-    // PA2 完成后替换为: cpu_exec(n);
+    cpu_exec((n <= 0) ? 1 : n);
     return 0;
 }
 

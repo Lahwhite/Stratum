@@ -9,7 +9,8 @@
 > score/
 > ├── include/
 > │   ├── cpu.h           ← 修改（加入执行状态枚举）
-> │   └── memory.h        ← 不变（接口不变，实现替换）
+> │   ├── memory.h        ← 不变（接口不变，实现替换）
+> │   └── elf.h           ← 本阶段新建（自定义精简版 ELF32 结构体，macOS 不自带 <elf.h>）
 > └── src/
 >     ├── cpu/
 >     │   ├── cpu.cpp     ← 修改（加入 cpu_exec 函数）
@@ -117,7 +118,13 @@ ELF（Executable and Linkable Format）是 Linux 下可执行文件的标准格�
    - `p_memsz`：内存中占用的字节数（`p_memsz - p_filesz` 字节用 0 填充，即 BSS 段）
 
 **相关头文件：**  
-POSIX 系统提供了 ELF 结构体定义：`#include <elf.h>`，其中 `Elf32_Ehdr` 是 ELF 文件头，`Elf32_Phdr` 是 Program Header。
+Linux 系统提供了 ELF 结构体定义：`#include <elf.h>`，其中 `Elf32_Ehdr` 是 ELF 文件头，`Elf32_Phdr` 是 Program Header。
+
+> ⚠️ **macOS 平台注意**：`<elf.h>` 是 Linux/glibc 提供的头文件，macOS（Mach-O 可执行文件格式）**不自带**这个头文件，直接 `#include <elf.h>` 会报错 `'elf.h' file not found`。
+>
+> 解决方式：不依赖系统头文件，在 `score/include/elf.h` 中**手写一份精简版的 ELF32 结构体定义**，只包含加载器实际用到的字段（`Elf32_Ehdr`、`Elf32_Phdr`、魔数常量、`PT_LOAD`、`EM_RISCV` 等）。这样代码在 macOS / Linux 上都能编译，不依赖操作系统是否提供标准 ELF 头文件，也更契合本项目"从零构建"的定位。
+>
+> 因此本项目里 `elf.cpp` 应该 `#include "../../include/elf.h"`（引用项目自己的头文件），而不是 `#include <elf.h>`（引用系统头文件）。
 
 ### 步骤
 
@@ -186,9 +193,14 @@ _start:
 
 用 RISC-V 工具链编译：
 
+> **注意：** macOS 下 Homebrew 安装的工具链命令前缀是 `riscv64-unknown-elf-`（不是 `riscv32-unknown-elf-`），且需要显式指定 `-march=rv32i -mabi=ilp32` 才能生成 32 位目标代码，详见 `PA0-环境搭建.md`。
+>
+> **坑点：** 直接用 `-Ttext 0x80000000` 链接时，链接器会按默认页对齐规则把 `LOAD` 段的 `PhysAddr` 向下对齐（例如变成 `0x7ffff000`），与模拟器的 `PMEM_BASE(0x80000000)` 不一致，导致 `load_elf` 里 `guest_to_host` 断言失败。需要额外加 `-Wl,-N` 参数（将代码段设为可读写执行，避免单独对齐），让 `LOAD` 段的物理地址与入口地址一致。
+
 ```bash
-riscv32-unknown-elf-gcc -nostdlib -Ttext 0x80000000 -o dummy.elf cpu-tests/start.S
-riscv32-unknown-elf-objdump -d dummy.elf   # 查看反汇编，确认内容
+riscv64-unknown-elf-gcc -march=rv32i -mabi=ilp32 -nostdlib -Wl,-Ttext=0x80000000 -Wl,-N -o dummy.elf cpu-tests/start.S
+riscv64-unknown-elf-readelf -l dummy.elf   # 确认 LOAD 段的 PhysAddr 等于 0x80000000
+riscv64-unknown-elf-objdump -d dummy.elf   # 查看反汇编，确认内容（应为 elf32-littleriscv 格式）
 ```
 
 然后运行：
@@ -426,8 +438,8 @@ TESTS := $(wildcard tests/*.S)
 ELFS  := $(TESTS:.S=.elf)
 
 %.elf: %.S
-	riscv32-unknown-elf-gcc -nostdlib -Iinclude \
-	    -Ttext 0x80000000 -o $@ $<
+	riscv64-unknown-elf-gcc -march=rv32i -mabi=ilp32 -nostdlib -Iinclude \
+	    -Wl,-Ttext=0x80000000 -Wl,-N -o $@ $<
 
 run: $(ELFS)
 	@pass=0; fail=0; \

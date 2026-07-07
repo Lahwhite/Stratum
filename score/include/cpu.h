@@ -2,8 +2,16 @@
 
 #include <cstdint>
 
-// RISC-V 32 位 CPU 状态
-struct CPU_state {
+// 执行状态枚举（加入 cpu.h）
+enum CpuState { CPU_RUNNING, CPU_STOPPED, CPU_END, CPU_ABORT };
+extern CpuState cpu_state;   // 全局 CPU 执行状态（在 cpu.cpp 中定义）
+
+// 执行 n 条指令（在 cpu.cpp 中定义）
+void cpu_exec(uint64_t n);
+
+// RISC-V 32 位 CPU 寄存器组
+// CPU_regs 描述“某一时刻的寄存器数据快照”）
+struct CPU_regs {
     uint32_t gpr[32];   // x0 ~ x31 通用寄存器
     uint32_t pc;        // 程序计数器
 
@@ -27,5 +35,5 @@ static const char* GPR_NAMES[32] = {
     "t3","t4","t5","t6"
 };
 
-// 全局 CPU 状态（在 cpu.cpp 中定义）
-extern CPU_state cpu;
+// 全局 CPU 寄存器状态（在 cpu.cpp 中定义）
+extern CPU_regs cpu;
