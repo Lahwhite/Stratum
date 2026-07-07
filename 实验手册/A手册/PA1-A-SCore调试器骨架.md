@@ -52,7 +52,9 @@
 #pragma once
 #include <cstdint>
 
-struct CPU_state {
+// 命名说明：这里用 CPU_regs 而不是 CPU_state，是为了与 PA2 中表示“执行阶段”的
+// enum CpuState 区分开：两者都叫 "state" 但维度完全不同（寄存器数据快照 vs 运行阶段标志）。
+struct CPU_regs {
     // TODO: 32 个通用寄存器（每个 32 位无符号整数）
     // TODO: 程序计数器 PC
 
@@ -62,8 +64,8 @@ struct CPU_state {
 // TODO: 定义一个全局的 ABI 名称字符串数组
 // 如：GPR_NAMES[0] = "zero", GPR_NAMES[1] = "ra", ...
 
-// 全局 CPU 状态（在 cpu.cpp 中定义）
-extern CPU_state cpu;
+// 全局 CPU 寄存器状态（在 cpu.cpp 中定义）
+extern CPU_regs cpu;
 ```
 
 > **第一层提示**：如果你不知道 RISC-V 的 ABI 寄存器名称，搜索 "RISC-V calling convention" 或 "RISC-V register ABI names"，找到那张寄存器表。
