@@ -5,6 +5,7 @@
 > **预计时间：** 3～4 天  
 > **前置条件：** 联调1 完成（tag `v1.0-pa1`）  
 > **本阶段涉及文件（在 `shal/` 目录，独立于 `score/`）：**
+>
 > ```
 > shal/
 > ├── Makefile                ← 本阶段新建（SHAL 构建系统）
@@ -20,9 +21,9 @@
 > │   └── native/
 > │       └── ioe.c           ← 本阶段新建（native 平台 IO：直接调系统调用）
 > └── apps/
->     └── hello/
->         ├── Makefile        ← 本阶段新建
->         └── main.c          ← 本阶段新建
+>  └── hello/
+>      ├── Makefile        ← 本阶段新建
+>      └── main.c          ← 本阶段新建
 > ```
 > **本阶段不涉及：** `platform/riscv32/` — RISC-V 平台的 IOE 由 PA3 完成；`score/` 目录完全由成员 A 负责，本阶段不涉及。
 
@@ -102,8 +103,8 @@ void putch(char c);
 ```
 
 ### 检查点
-- [ ] 目录结构正确创建
-- [ ] `am.h` 和 `klib-macros.h` 编译（被其他文件 include 时）不报错
+- [x] 目录结构正确创建
+- [x] `am.h` 和 `klib-macros.h` 编译（被其他文件 include 时）不报错
 
 ---
 
@@ -182,8 +183,8 @@ void test_strlen() {
 ```
 
 ### 检查点
-- [ ] 每个函数在 native 上编译并通过测试
-- [ ] `memmove` 在 src 和 dst 重叠情况下行为正确（画图验证）
+- [x] 每个函数在 native 上编译并通过测试
+- [x] `memmove` 在 src 和 dst 重叠情况下行为正确（画图验证）
 
 ---
 
@@ -367,9 +368,9 @@ This program runs on the Abstract Machine.
 `native` 平台的 `putch` 调用了 Linux 的 `write()`，但 RISC-V 平台没有 Linux。告诉 A：联调2时，你需要知道 SCore 的 UART 地址是多少（这样你就能实现 `riscv32` 平台的 `putch`，向那个地址写一个字节）。
 
 ### 检查点
-- [ ] `./hello` 输出正确
-- [ ] 没有 warning
-- [ ] 代码不依赖任何系统头文件（只有 `platform/native/ioe.c` 可以 `#include <unistd.h>`，其余文件不能用系统头文件）
+- [x] `./hello` 输出正确
+- [x] 没有 warning
+- [x] 代码不依赖任何系统头文件（只有 `platform/native/ioe.c` 可以 `#include <unistd.h>`，其余文件不能用系统头文件）
 
 ---
 
