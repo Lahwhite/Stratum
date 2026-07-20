@@ -27,6 +27,12 @@ uint32_t paddr_read(uint32_t addr, int len) {
 }
 
 void paddr_write(uint32_t addr, int len, uint32_t data) {
+    if (addr == 0xa0000000) {
+        putchar((char)data);
+        fflush(stdout);
+        return;
+    }
+    check_addr(addr, len);
     if (addr < PMEM_BASE || addr + len > PMEM_BASE + PMEM_SIZE) {
         printf("非法内存写：addr=0x%08x len=%d data=0x%08x\n", addr, len, data);
         return;
