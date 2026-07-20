@@ -38,6 +38,10 @@
 *.exe
 *.out
 *.app
+*.elf
+
+# SCore 编译产物（无扩展名的可执行文件）
+score/score
 
 # Build directories
 build/

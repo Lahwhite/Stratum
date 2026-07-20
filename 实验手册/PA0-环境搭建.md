@@ -55,6 +55,28 @@ riscv32-unknown-elf-gcc --version
 ```
 
 > macOS：使用 Homebrew 安装 `riscv-software-src/riscv/riscv-gnu-toolchain`
+>
+> ```bash
+> brew install riscv-software-src/riscv/riscv-gnu-toolchain
+> ```
+>
+> **注意（坑点）：** Homebrew 装出来的命令前缀是 `riscv64-unknown-elf-`，**不是** `riscv32-unknown-elf-`！这是因为该 tap 只发布了一套支持多目标（multilib）的工具链，默认按 64 位命名，实际编译到 32 位（RV32）需要显式加上 `-march=rv32i -mabi=ilp32` 参数。
+>
+> 验证安装：
+>
+> ```bash
+> riscv64-unknown-elf-gcc --version
+> ```
+>
+> 编译 32 位裸机程序示例（生成 `elf32-littleriscv` 格式）：
+>
+> ```bash
+> riscv64-unknown-elf-gcc -march=rv32i -mabi=ilp32 -nostdlib -Ttext 0x80000000 -o dummy.elf cpu-tests/start.S
+> # 验证目标格式
+> riscv64-unknown-elf-objdump -d dummy.elf   # 应看到 file format elf32-littleriscv
+> ```
+>
+> 建议在 Makefile 中通过变量区分平台，或直接使用 `riscv64-unknown-elf-gcc` 并固定加上 `-march=rv32i -mabi=ilp32`。
 
 ### 2.3 SDL2
 
