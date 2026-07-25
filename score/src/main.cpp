@@ -14,7 +14,11 @@ int main(int argc, char *argv[]) {
         printf("加载 ELF 失败：%s\n", argv[1]);
         return 1;
     }
-    printf("ELF 已加载，入口地址：0x%08x\n", cpu.pc);
+
+    // 初始化栈指针：指向物理内存顶端（栈从高地址向低地址增长）
+    cpu.gpr[2] = PMEM_BASE + PMEM_SIZE;  // x2 = sp
+
+    printf("ELF 已加载，入口地址：0x%08x, 栈顶：0x%08x\n", cpu.pc, cpu.gpr[2]);
     sdb_mainloop();
     return 0;
 }

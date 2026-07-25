@@ -6,6 +6,10 @@
 static uint8_t mem[PMEM_SIZE];
 
 uint8_t* guest_to_host(uint32_t paddr) {
+    if (!(paddr >= PMEM_BASE && paddr < PMEM_BASE + PMEM_SIZE)) {
+        printf("guest_to_host: 非法物理地址 0x%08x (PMEM_BASE=0x%08x, PMEM_SIZE=0x%x)\n",
+               paddr, PMEM_BASE, PMEM_SIZE);
+    }
     assert(paddr >= PMEM_BASE && paddr < PMEM_BASE + PMEM_SIZE);
     return mem + (paddr - PMEM_BASE);
 }
@@ -27,6 +31,13 @@ uint32_t paddr_read(uint32_t addr, int len) {
 }
 
 void paddr_write(uint32_t addr, int len, uint32_t data) {
+    // UART TX: 向 0xa0000000 写字节 → 打印到终端
+    if (addr == 0xa0000000) {
+        putchar((char)data);
+        fflush(stdout);
+        return;
+    }
+
     if (addr < PMEM_BASE || addr + len > PMEM_BASE + PMEM_SIZE) {
         printf("非法内存写：addr=0x%08x len=%d data=0x%08x\n", addr, len, data);
         return;
