@@ -37,7 +37,6 @@ void paddr_write(uint32_t addr, int len, uint32_t data) {
         fflush(stdout);
         return;
     }
-
     if (addr < PMEM_BASE || addr + len > PMEM_BASE + PMEM_SIZE) {
         printf("非法内存写：addr=0x%08x len=%d data=0x%08x\n", addr, len, data);
         return;
