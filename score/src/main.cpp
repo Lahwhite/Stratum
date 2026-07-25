@@ -3,6 +3,7 @@
 #include "../include/sdb.h"
 #include "../include/elf.h"
 #include "../include/cpu.h"
+#include "../include/memory.h"
 
 int main(int argc, char *argv[]) {
     printf("Stratum-Core (SCore) - RISC-V 32-bit Simulator\n");

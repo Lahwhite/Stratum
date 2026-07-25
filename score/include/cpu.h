@@ -27,7 +27,7 @@ struct CPU_regs {
 };
 
 // RISC-V ABI 寄存器名称表
-static const char* GPR_NAMES[32] = {
+constexpr const char* GPR_NAMES[32] = {
     "zero","ra","sp","gp","tp",
     "t0","t1","t2","s0","s1",
     "a0","a1","a2","a3","a4","a5","a6","a7",

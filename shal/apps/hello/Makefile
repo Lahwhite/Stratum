@@ -5,6 +5,7 @@ SRCS := main.c \
         ../../klib/string.c \
         ../../klib/stdio.c  \
         ../../klib/stdlib.c \
+                ../../klib/softdiv.c \
         ../../platform/native/ioe.c
 
 RISCV_CC     := riscv64-unknown-elf-gcc
@@ -17,14 +18,9 @@ RISCV_SRCS   := main.c \
                 ../../klib/softdiv.c \
                 ../../platform/riscv32/ioe.c
 
-hello: $(SRCS)
-	$(CC) $(CFLAGS) -o $@ $^
+hello.elf: $(RISCV_SRCS)
+	$(RISCV_CC) $(RISCV_CFLAGS) -o $@ $^
 
 clean:
 	rm -f hello
-        rm -f hello.elf
-
-
-
-hello.elf: $(RISCV_SRCS)
-	$(RISCV_CC) $(RISCV_CFLAGS) -o $@ $^
+	rm -f hello.elf

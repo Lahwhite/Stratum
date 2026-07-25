@@ -16,7 +16,8 @@
 > ├── klib/
 > │   ├── string.c            ← 本阶段新建
 > │   ├── stdio.c             ← 本阶段新建
-> │   └── stdlib.c            ← 本阶段新建
+> │   ├── stdlib.c            ← 本阶段新建
+> │   └── softdiv.c           ← 本阶段新建（软件乘除法，RV32I 无硬件乘除指令）
 > ├── platform/
 > │   └── native/
 > │       └── ioe.c           ← 本阶段新建（native 平台 IO：直接调系统调用）
@@ -307,6 +308,111 @@ void free(void *p) {
 
 ---
 
+## 实验四补充：实现 klib —— softdiv 模块（RV32I 专用）
+
+### 目标
+实现软件乘除法函数，供 RISC-V rv32i 架构使用（rv32i 没有硬件乘除法指令）。
+
+### 背景知识
+
+**为什么需要软件乘除法？**
+
+RISC-V 的基础整数指令集 `rv32i` 只包含加减、逻辑运算、移位和分支指令，**没有乘法和除法指令**。当 GCC 编译代码遇到乘除法运算时，会生成对以下函数的调用：
+
+| 函数名 | 功能 | 调用场景 |
+|--------|------|----------|
+| `__mulsi3` | 有符号整数乘法 | `a * b` |
+| `__umulsi3` | 无符号整数乘法 | `(unsigned)a * (unsigned)b` |
+| `__divsi3` | 有符号整数除法 | `a / b` |
+| `__udivsi3` | 无符号整数除法 | `(unsigned)a / (unsigned)b` |
+| `__modsi3` | 有符号整数取模 | `a % b` |
+| `__umodsi3` | 无符号整数取模 | `(unsigned)a % (unsigned)b` |
+
+这些函数是 GCC 的内部 ABI，必须提供实现才能在 rv32i 上链接通过。
+
+### 步骤
+
+**1. 实现 `shal/klib/softdiv.c`**
+
+```c
+// 有符号整数乘法
+int __mulsi3(int a, int b) {
+    int result = 0;
+    int sign = 1;
+    if (a < 0) { a = -a; sign = -sign; }
+    if (b < 0) { b = -b; sign = -sign; }
+    while (b > 0) {
+        if (b & 1) result += a;
+        a <<= 1;
+        b >>= 1;
+    }
+    return sign * result;
+}
+
+// 无符号整数乘法
+unsigned int __umulsi3(unsigned int a, unsigned int b) {
+    unsigned int result = 0;
+    while (b > 0) {
+        if (b & 1) result += a;
+        a <<= 1;
+        b >>= 1;
+    }
+    return result;
+}
+
+// 有符号整数除法
+int __divsi3(int a, int b) {
+    int result = 0;
+    int sign = 1;
+    if (a < 0) { a = -a; sign = -sign; }
+    if (b < 0) { b = -b; sign = -sign; }
+    while (a >= b) {
+        a -= b;
+        result++;
+    }
+    return sign * result;
+}
+
+// 无符号整数除法
+unsigned int __udivsi3(unsigned int a, unsigned int b) {
+    unsigned int result = 0;
+    while (a >= b) {
+        a -= b;
+        result++;
+    }
+    return result;
+}
+
+// 有符号整数取模
+int __modsi3(int a, int b) {
+    int sign = 1;
+    if (a < 0) { a = -a; sign = -sign; }
+    if (b < 0) b = -b;
+    while (a >= b) a -= b;
+    return sign * a;
+}
+
+// 无符号整数取模
+unsigned int __umodsi3(unsigned int a, unsigned int b) {
+    while (a >= b) a -= b;
+    return a;
+}
+```
+
+**2. 算法说明**
+
+- **乘法**：使用移位-累加算法，将乘法分解为多次加法和移位
+- **除法/取模**：使用减法迭代，从被除数中不断减去除数，计数即为商
+
+> **优化提示**：以上是最简实现，效率不高。PA3 阶段可以用更高效的算法（如二分查找除法）替换。
+
+### 检查点
+- [ ] 所有函数在 native 平台编译通过
+- [ ] `__divsi3(10, 3)` 返回 `3`，`__modsi3(10, 3)` 返回 `1`
+- [ ] `__divsi3(-10, 3)` 返回 `-3`，`__modsi3(-10, 3)` 返回 `-1`
+
+---
+
 ## 实验五：hello 程序骨架
 
 ### 目标
@@ -348,11 +454,11 @@ clean:
 	rm -f hello
 ```
 
-**3. 编译运行**
+**3. 编译运行（native 平台）**
 
 ```bash
 cd shal/apps/hello
-make
+make hello
 ./hello
 ```
 
@@ -363,7 +469,54 @@ This program runs on the Abstract Machine.
 1 + 1 = 2
 ```
 
-**4. 为联调2做好准备：思考 RISC-V 平台需要什么**
+**4. 扩展 Makefile 支持 RISC-V 平台**
+
+在 Makefile 中添加 RISC-V 交叉编译规则：
+
+```makefile
+# RISC-V 平台编译规则
+RISCV_CC     := riscv64-unknown-elf-gcc
+RISCV_CFLAGS := -march=rv32i -mabi=ilp32 -std=c99 -nostdlib -Wall -I../../include \
+                -Wl,-Ttext=0x80000000 -Wl,-N -e main
+RISCV_SRCS   := main.c \
+                ../../klib/string.c \
+                ../../klib/stdio.c  \
+                ../../klib/stdlib.c \
+                ../../klib/softdiv.c \
+                ../../platform/riscv32/ioe.c
+
+hello.elf: $(RISCV_SRCS)
+	$(RISCV_CC) $(RISCV_CFLAGS) -o $@ $^
+
+clean:
+	rm -f hello hello.elf
+```
+
+> **参数说明：**
+> - `-march=rv32i`：目标架构为 RISC-V 32 位基础整数指令集
+> - `-mabi=ilp32`：使用 32 位整数 ABI（int/long/pointer 都是 32 位）
+> - `-nostdlib`：不链接标准库（裸机环境）
+> - `-Wl,-Ttext=0x80000000`：指定代码段起始地址为 `0x80000000`（SCore 默认加载地址）
+> - `-Wl,-N`：禁用数据段只读
+> - `-e main`：指定入口点为 `main`
+
+**5. 编译 RISC-V 版本**
+
+```bash
+cd shal/apps/hello
+make hello.elf
+```
+
+编译成功后会生成 `hello.elf` 文件，这是一个 RISC-V 32 位 ELF 可执行文件，可以在 SCore 模拟器中运行。
+
+**6. 验证 ELF 文件格式**
+
+```bash
+file hello.elf
+# 期望输出：hello.elf: ELF 32-bit LSB executable, UCB RISC-V, RVC, soft-float ABI, version 1 (SYSV), statically linked, not stripped
+```
+
+**7. 为联调2做好准备：思考 RISC-V 平台需要什么**
 
 `native` 平台的 `putch` 调用了 Linux 的 `write()`，但 RISC-V 平台没有 Linux。告诉 A：联调2时，你需要知道 SCore 的 UART 地址是多少（这样你就能实现 `riscv32` 平台的 `putch`，向那个地址写一个字节）。
 
@@ -371,6 +524,8 @@ This program runs on the Abstract Machine.
 - [x] `./hello` 输出正确
 - [x] 没有 warning
 - [x] 代码不依赖任何系统头文件（只有 `platform/native/ioe.c` 可以 `#include <unistd.h>`，其余文件不能用系统头文件）
+- [x] `make hello.elf` 编译成功，生成 `hello.elf`
+- [x] `file hello.elf` 显示为 `ELF 32-bit LSB executable, UCB RISC-V`
 
 ---
 
@@ -383,14 +538,16 @@ This program runs on the Abstract Machine.
 | `shal/klib/string.c` | memcpy / strcpy / strcmp 等 |
 | `shal/klib/stdio.c` | printf / sprintf（通过 putch） |
 | `shal/klib/stdlib.c` | atoi / malloc |
+| `shal/klib/softdiv.c` | 软件乘除法（RV32I 专用） |
 | `shal/platform/native/ioe.c` | native 平台 putch |
-| `shal/apps/hello/` | 第一个 SHAL 程序 |
+| `shal/apps/hello/` | 第一个 SHAL 程序（native 和 RISC-V 双版本） |
 
 **你现在能回答：**
 - 为什么不能直接用 `<string.h>`？抽象机器解决了什么问题？
 - `printf` 是如何处理 `%d` 格式符的？整数如何转为字符串？
 - `memmove` 和 `memcpy` 的区别是什么？什么情况下必须用 `memmove`？
 - 为什么这个极简的 `malloc` 没有 `free`，但对于操作系统内核够用？
+- 为什么 RV32I 需要软件乘除法？GCC 遇到乘除法时会生成什么函数调用？
 
 ---
 
@@ -414,3 +571,15 @@ A：关键是复制方向。当 `dst > src` 且有重叠时，从前往后复制
 
 **Q：`hello` 链接时报 `undefined reference to putchar`？**  
 A：检查 Makefile 的 SRCS 列表，确保 `platform/native/ioe.c` 在其中。另外检查 `printf` 的实现是否真的调用了 `putch` 而不是 `putchar`。
+
+**Q：编译 `hello.elf` 时报 `undefined reference to __divsi3/__modsi3`？**  
+A：RV32I 没有硬件乘除法指令，需要提供软件实现。检查 Makefile 的 `RISCV_SRCS` 是否包含 `../../klib/softdiv.c`。
+
+**Q：`make hello.elf` 时报 `No rule to make target '../../klib/softdiv.c'`？**  
+A：`softdiv.c` 文件尚未创建。按照「实验四补充」中的步骤创建该文件。
+
+**Q：`make hello.elf` 时报 `missing separator`？**  
+A：Makefile 的命令行必须以 TAB 字符开头，不能用空格。检查 `hello.elf:` 目标下的命令是否使用了真正的 TAB。
+
+**Q：`file hello.elf` 显示 `ELF 64-bit` 而不是 `ELF 32-bit`？**  
+A：检查 RISCV_CFLAGS 是否包含 `-march=rv32i -mabi=ilp32`。缺少这些参数会导致编译器默认生成 64 位代码。
